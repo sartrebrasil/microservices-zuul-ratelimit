@@ -1,0 +1,163 @@
+spring:
+  application:
+    name: zuul-gateway
+  redis:
+    host: localhost
+    password: ''
+    port: 6379    
+  datasource:
+    name: @project.name@HikariCPPool
+    url: @jdbc.url@
+    username: @jdbc.user@
+    password: @jdbc.password@
+    driver-class-name: @jdbc.driver@
+    type: com.zaxxer.hikari.HikariDataSource
+    hikari:
+      pool-name: @project.name@DS
+      maximumPoolSize: 10
+  jpa:
+    database: @jpa.database@
+    database-platform: @jpa.dialect@
+    hibernate:
+      ddl-auto: none
+    open-in-view: true
+    show-sql: false
+    
+#server:
+#  port: 5555
+
+eureka:
+  instance:
+    preferIpAddress: true
+  client:
+    register-with-eureka: true
+    fetch-registry: true
+    serviceUrl:
+      defaultZone: http://localhost:8761/eureka/,http://localhost:8762/eureka/
+
+endpoints:
+  cors:
+    allowed-origins: '*'
+    allowed-headers: '*'
+    allowed-methods: '*'
+    exposed-headers: '*'
+    max-age: 3600
+
+jwt:
+  header: x-auth-token
+#  expiration: 30
+#  secret: 9SyECk96oDsTmXfogIieDI0cD/8FpnojlYSUJT5U9I/FGVmBz5oskmjOR8cbXTvoPjX+Pq/T/b1PqpHX0lYm0oCBjXWICA==
+
+#management:
+#  endpoints:
+#    web:
+#      exposure:
+#        include:
+#        - routes
+
+#logging:
+#  level:
+#    root: INFO
+#    org.springframework: INFO
+
+# authentication Config
+authorized:
+  endpoints: /session,/authenticate  
+
+zuul:
+#  prefix: /api
+  ignoredServices: '*'
+  addProxyHeaders: true
+  addHostHeader: true
+  sensitiveHeaders:
+  - Cookie, Set-Cookie, Authorization, x-auth-token
+  set-content-length: true
+  routes: 
+    oobj-rest-service: 
+      path: /**
+      serviceId: oobj-rest-service
+    
+  ratelimit:
+    enabled: true
+    key-prefix: zuul
+    repository: REDIS
+    add-response-headers: true
+    add-suffix-route-on-response-headers: false
+    behind-proxy: true
+    default-policy-list:
+      - limit: 3 #optional - request number limit per refresh interval window
+        quota: 1000 #optional - request time limit per refresh interval window (in seconds)
+        refresh-interval: 60 #default value (in seconds)
+        type: #optional
+          - user
+          - origin
+          - http_method
+    policy-list:
+      oobj-rest-service:
+      
+        #Autentication      
+        -
+          limit: 3
+          quota: 1000
+          refresh-interval: 10
+          type:
+          - origin          
+          - http_method=post
+          - url=/session
+
+        -
+          limit: 3
+          quota: 1000
+          refresh-interval: 10
+          type:
+          - origin
+          - http_method=post
+          - url=/authenticate
+
+        #Empresas
+        -
+          limit: 3
+          quota: 1000
+          refresh-interval: 10
+          type:
+          - user
+          - http_method=get
+          - url=/api/empresas
+
+        -
+          limit: 3
+          quota: 1000
+          refresh-interval: 10
+          type:
+          - user
+          - http_method=get
+          - url_pattern=/api/empresas/*
+
+        #DFe Controller
+        -
+          limit: 3
+          quota: 1000
+          refresh-interval: 10
+          type:
+          - user          
+          - http_method=post
+          - url_pattern=/api/empresas/*/docs/*/*/consultaRetornoDFe
+
+        -
+          limit: 3
+          quota: 1000
+          refresh-interval: 10
+          type:
+          - user          
+          - http_method=post
+          - url_pattern=/api/empresas/*/docs/*/*
+
+        -
+          limit: 3
+          quota: 1000
+          refresh-interval: 10
+          type:
+          - user
+          - http_method=post
+          - url=/api/downloadXml          
+      
